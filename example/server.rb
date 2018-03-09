@@ -45,7 +45,7 @@ loop do
   sock = server.accept
   puts 'New TCP connection!'
 
-  conn = HTTP2::Server.new
+  conn = HTTP2::Server.new(settings_enable_connect_protocol: 1)
   conn.on(:frame) do |bytes|
     # puts "Writing bytes: #{bytes.unpack("H*").first}"
     sock.is_a?(TCPSocket) ? sock.sendmsg(bytes) : sock.write(bytes)
@@ -56,7 +56,6 @@ loop do
   conn.on(:frame_received) do |frame|
     puts "Received frame: #{frame.inspect}"
   end
-
   conn.on(:stream) do |stream|
     log = Logger.new(stream.id)
     req, buffer = {}, ''
@@ -67,10 +66,19 @@ loop do
     stream.on(:headers) do |h|
       req = Hash[*h.flatten]
       log.info "request headers: #{h}"
+      # websocket upgrade dance
+      if h[0][0] == ":method" && h[0][1] == "CONNECT"
+        stream.headers({
+          ':status' => '200',
+          'sec-websocket-protocol' => 'chat',
+        }, end_stream: false)
+      end
     end
 
     stream.on(:data) do |d|
       log.info "payload chunk: <<#{d}>>"
+      buffer = "" + 0b10000001.chr + 0x00000011.chr + "Hi!"
+      stream.data(buffer, end_stream: false)
       buffer << d
     end
 
@@ -78,18 +86,22 @@ loop do
       log.info 'client closed its end of the stream'
 
       response = nil
-      if req[':method'] == 'POST'
-        log.info "Received POST request, payload: #{buffer}"
-        response = "Hello HTTP 2.0! POST payload: #{buffer}"
-      else
-        log.info 'Received GET request'
-        response = 'Hello HTTP 2.0! GET request'
+      File.open("./html/index.html", "r") do |f|
+        response = f.read
       end
+
+      #if req[':method'] == 'POST'
+      #  log.info "Received POST request, payload: #{buffer}"
+      #  response = "Hello HTTP 2.0! POST payload: #{buffer}"
+      #else
+      #  log.info 'Received GET request'
+      #  response = 'Hello HTTP 2.0! GET request'
+      #end
 
       stream.headers({
         ':status' => '200',
         'content-length' => response.bytesize.to_s,
-        'content-type' => 'text/plain',
+        'content-type' => 'text/html',
       }, end_stream: false)
 
       if options[:push]

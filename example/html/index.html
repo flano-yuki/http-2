@@ -1,0 +1,38 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>WebSocket Sample</title>
+<script src="https://code.jquery.com/jquery-latest.min.js"></script>
+<script>
+$(function(){
+    var ws = new WebSocket("wss://localhost", "chat");
+ 
+    ws.onopen = function(){
+        $("#log").prepend("&lt;onopen&gt; " + "<br/>");
+    }
+ 
+    ws.onmessage = function(message){
+        $("#log").prepend(message.data + "<br/>");
+    }
+
+    ws.onerror = function(){
+        $("#log").prepend("&lt;onerror&gt; " + "<br/>");
+    }
+ 
+    ws.onclose = function(){
+        $("#log").prepend("&lt;onclose&gt; " + "<br/>");
+    }
+ 
+    $(window).unload(function() {
+        ws.onclose();
+    })
+ 
+    $("#message").keyup(function(e){
+        ws.send($("#message").val());
+    });
+ 
+})
+</script>
+</head>
+<body><input type="text" id="message" /><div id="log" /></body>
+</html>

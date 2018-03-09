@@ -69,6 +69,7 @@ module HTTP2
       settings_initial_window_size:    4,
       settings_max_frame_size:         5,
       settings_max_header_list_size:   6,
+      settings_enable_connect_protocol:8,
     }.freeze
 
     # Default error types as defined by the spec
